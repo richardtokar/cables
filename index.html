@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cable Match</title>
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --card: #ffffff;
+      --line: #cfd6e0;
+      --text: #1f2a37;
+      --muted: #5f6b7b;
+      --accent: #3559e0;
+      --correct: #198754;
+      --wrong: #c62828;
+      --shadow: 0 8px 22px rgba(17, 24, 39, 0.08);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at 20% 0%, #fcfdff 0, var(--bg) 45%, #e9eef6 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .app {
+      max-width: 1120px;
+      margin: 0 auto;
+      background: #f7f9fdcc;
+      border: 1px solid #d9e0ea;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(2px);
+    }
+
+    h1 {
+      margin: 4px 0 12px;
+      text-align: center;
+      font-size: clamp(1.7rem, 3vw, 2.3rem);
+      letter-spacing: 0.4px;
+    }
+
+    .instructions {
+      margin: 0 auto 16px;
+      max-width: 760px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.45;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      min-height: 280px;
+      box-shadow: 0 4px 14px rgba(9, 15, 38, 0.05);
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 1.06rem;
+      color: #233044;
+    }
+
+    .slot-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .slot-item {
+      border: 1px solid #d5dce7;
+      border-radius: 12px;
+      overflow: hidden;
+      background: linear-gradient(160deg, #fefefe 0%, #f4f7fb 65%, #ecf1f8 100%);
+      position: relative;
+    }
+
+    .image-card {
+      padding: 10px 10px 2px;
+      display: grid;
+      place-items: center;
+      min-height: 150px;
+      background: radial-gradient(circle at 60% 10%, #ffffff 0%, #f0f5ff 68%, #e9eef7 100%);
+      border-bottom: 1px solid #dce4ef;
+    }
+
+    .image-card svg {
+      width: min(100%, 260px);
+      height: auto;
+      display: block;
+    }
+
+    .caption {
+      text-align: center;
+      font-size: 0.88rem;
+      color: #4b5563;
+      margin: 6px 0 8px;
+      font-weight: 600;
+    }
+
+    .drop-zone {
+      margin: 8px;
+      border: 2px dashed #98a4b8;
+      background: linear-gradient(180deg, #f6f9ff 0, #edf3ff 100%);
+      border-radius: 10px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: #e7eeff;
+    }
+
+    .drop-zone.correct {
+      border-style: solid;
+      border-color: var(--correct);
+      background: #eaf8f1;
+    }
+
+    .drop-zone.wrong {
+      border-style: solid;
+      border-color: var(--wrong);
+      background: #fdeeee;
+    }
+
+    .mark {
+      position: absolute;
+      right: 8px;
+      top: 6px;
+      font-size: 1.18rem;
+      font-weight: 700;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .drop-zone.correct .mark { color: var(--correct); }
+    .drop-zone.wrong .mark { color: var(--wrong); }
+
+    .choices-wrap {
+      min-height: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .choices {
+      border: 1px dashed #b8c2d2;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 140px;
+      background: #f8fbff;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .label-card {
+      border: 1px solid #99a9c0;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #ffffff 0, #f2f6ff 100%);
+      padding: 12px 14px;
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 2px 7px rgba(31, 42, 55, 0.12);
+    }
+
+    .label-card:active { cursor: grabbing; }
+
+    .label-card.selected {
+      border-color: var(--accent);
+      outline: 3px solid #c7d5ff;
+      background: linear-gradient(180deg, #f5f8ff 0, #e9efff 100%);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    button {
+      min-height: 46px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid #6f84a9;
+      background: #f7f9ff;
+      color: #1f2a37;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover { filter: brightness(0.98); }
+
+    #submitBtn {
+      background: linear-gradient(180deg, #3d63f0 0, #2f52ce 100%);
+      border-color: #2b4ab9;
+      color: #fff;
+    }
+
+    #status {
+      margin-top: 4px;
+      color: #334155;
+      font-weight: 600;
+      min-height: 24px;
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 10px; }
+      .app { padding: 12px; }
+      .board { grid-template-columns: 1fr; }
+      .choices-wrap { min-height: auto; }
+      .choices {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Cable Match</h1>
+    <p class="instructions">Drag each label to the matching connector image. On touch screens, tap a label to select it, then tap a drop zone.</p>
+
+    <section class="board">
+      <section class="panel">
+        <h2>Connector Images</h2>
+        <div class="slot-grid" id="slotGrid"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Labels</h2>
+        <div class="choices-wrap">
+          <div class="choices" id="choices" aria-label="Available labels area"></div>
+          <div class="controls">
+            <button id="submitBtn" type="button">Submit</button>
+            <button id="resetWrongBtn" type="button">Reset Wrong</button>
+            <button id="newRoundBtn" type="button">New Round</button>
+          </div>
+          <p id="status" aria-live="polite"></p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const labels = ["USB", "HDMI", "Ethernet", "DVI", "eSATA"];
+    const slotDefs = [
+      { id: "slot_dvi", answer: "DVI", caption: "Connector 1", art: "dvi" },
+      { id: "slot_usb", answer: "USB", caption: "Connector 2", art: "usb" },
+      { id: "slot_esata", answer: "eSATA", caption: "Connector 3", art: "esata" },
+      { id: "slot_hdmi", answer: "HDMI", caption: "Connector 4", art: "hdmi" },
+      { id: "slot_eth", answer: "Ethernet", caption: "Connector 5", art: "eth" }
+    ];
+
+    const slotGrid = document.getElementById("slotGrid");
+    const choices = document.getElementById("choices");
+    const statusEl = document.getElementById("status");
+    const submitBtn = document.getElementById("submitBtn");
+    const resetWrongBtn = document.getElementById("resetWrongBtn");
+    const newRoundBtn = document.getElementById("newRoundBtn");
+
+    let selectedLabel = null;
+    let hasGraded = false;
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function connectorSvg(type) {
+      const baseDefs = `
+      <defs>
+        <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f7f8fa"/>
+          <stop offset="25%" stop-color="#c7cdd5"/>
+          <stop offset="55%" stop-color="#8e98a4"/>
+          <stop offset="100%" stop-color="#dce2e8"/>
+        </linearGradient>
+        <linearGradient id="darkPlastic" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#42484f"/>
+          <stop offset="100%" stop-color="#1f2328"/>
+        </linearGradient>
+        <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="rgba(255,255,255,.62)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </linearGradient>
+        <filter id="dropShadow" x="-20%" y="-30%" width="150%" height="170%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="b"/>
+          <feOffset dy="2" result="o"/>
+          <feColorMatrix in="o" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .25 0" result="s"/>
+          <feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="grain" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="3" result="n"/>
+          <feColorMatrix in="n" type="saturate" values="0"/>
+          <feComponentTransfer>
+            <feFuncA type="table" tableValues="0 0 .05"/>
+          </feComponentTransfer>
+        </filter>
+      </defs>`;
+
+      if (type === "dvi") {
+        return `<svg viewBox="0 0 280 145" aria-hidden="true">${baseDefs}
+          <rect x="18" y="50" width="184" height="44" rx="8" fill="url(#darkPlastic)" filter="url(#dropShadow)"/>
+          <rect x="36" y="44" width="166" height="56" rx="10" fill="url(#metal)" stroke="#6b7480"/>
+          <rect x="44" y="53" width="115" height="38" rx="4" fill="#21262c"/>
+          <g fill="#e5d39e">
+            ${Array.from({length: 24}).map((_,i)=>`<rect x="${50+(i%8)*12}" y="${58+Math.floor(i/8)*11}" width="6" height="5" rx="1"/>`).join("")}
+          </g>
+          <rect x="163" y="59" width="30" height="26" rx="3" fill="#0f141a"/>
+          <g fill="#d7b774">${Array.from({length:4}).map((_,i)=>`<rect x="${170+i*6}" y="68" width="3" height="10" rx="1"/>`).join("")}</g>
+          <circle cx="26" cy="72" r="7" fill="#d9dee5" stroke="#767f8a"/>
+          <circle cx="26" cy="72" r="2.2" fill="#8c959f"/>
+          <circle cx="213" cy="72" r="7" fill="#d9dee5" stroke="#767f8a"/>
+          <circle cx="213" cy="72" r="2.2" fill="#8c959f"/>
+          <path d="M40 48 h120" stroke="url(#shine)" stroke-width="4"/>
+          <rect x="36" y="44" width="166" height="56" rx="10" filter="url(#grain)"/>
+        </svg>`;
+      }
+
+      if (type === "usb") {
+        return `<svg viewBox="0 0 280 145" aria-hidden="true">${baseDefs}
+          <path d="M20 92 h150 l24-20 h44 v22 h-40 l-26 18 h-152 z" fill="url(#darkPlastic)" filter="url(#dropShadow)"/>
+          <rect x="160" y="58" width="78" height="40" rx="5" fill="url(#metal)" stroke="#7f8892"/>
+          <rect x="170" y="67" width="54" height="22" rx="2" fill="#0f1318"/>
+          <rect x="175" y="72" width="20" height="12" rx="1" fill="#e2cf9b"/>
+          <rect x="198" y="72" width="20" height="12" rx="1" fill="#e2cf9b"/>
+          <path d="M25 97 h140" stroke="#636b76" stroke-width="2"/>
+          <path d="M165 62 h62" stroke="url(#shine)" stroke-width="3"/>
+          <ellipse cx="102" cy="86" rx="70" ry="12" fill="rgba(255,255,255,.08)"/>
+          <rect x="160" y="58" width="78" height="40" rx="5" filter="url(#grain)"/>
+        </svg>`;
+      }
+
+      if (type === "esata") {
+        return `<svg viewBox="0 0 280 145" aria-hidden="true">${baseDefs}
+          <path d="M20 93 h158 l22-16 h44 v20 h-42 l-24 14 h-158 z" fill="url(#darkPlastic)" filter="url(#dropShadow)"/>
+          <rect x="163" y="64" width="79" height="35" rx="7" fill="url(#metal)" stroke="#727b86"/>
+          <rect x="171" y="71" width="62" height="20" rx="3" fill="#0d1217"/>
+          <rect x="176" y="78" width="52" height="6" rx="2" fill="#d9c48f"/>
+          <path d="M26 96 h145" stroke="#5f6671" stroke-width="2"/>
+          <path d="M170 67 h60" stroke="url(#shine)" stroke-width="3"/>
+          <rect x="163" y="64" width="79" height="35" rx="7" filter="url(#grain)"/>
+        </svg>`;
+      }
+
+      if (type === "hdmi") {
+        return `<svg viewBox="0 0 280 145" aria-hidden="true">${baseDefs}
+          <path d="M18 94 h142 l27-24 h55 v24 h-48 l-27 18 h-149 z" fill="url(#darkPlastic)" filter="url(#dropShadow)"/>
+          <path d="M168 62 h74 l-8 38 h-58 z" fill="url(#metal)" stroke="#6e7781"/>
+          <path d="M180 72 h45 l-4 17 h-37 z" fill="#10151b"/>
+          <g fill="#d8c08a">
+            ${Array.from({length:19}).map((_,i)=>`<rect x="${182+i*2.2}" y="81" width="1.4" height="6" rx="0.5"/>`).join("")}
+          </g>
+          <path d="M173 66 h63" stroke="url(#shine)" stroke-width="3"/>
+          <rect x="168" y="62" width="74" height="38" rx="4" filter="url(#grain)"/>
+        </svg>`;
+      }
+
+      return `<svg viewBox="0 0 280 145" aria-hidden="true">${baseDefs}
+        <path d="M20 95 h150 l26-22 h50 v26 h-45 l-28 16 h-153 z" fill="url(#darkPlastic)" filter="url(#dropShadow)"/>
+        <rect x="164" y="56" width="82" height="50" rx="7" fill="url(#metal)" stroke="#6f7884"/>
+        <rect x="172" y="65" width="65" height="33" rx="3" fill="#141a21"/>
+        <rect x="178" y="70" width="52" height="20" rx="2" fill="#a8d3ba"/>
+        <g fill="#f0c96f">${Array.from({length:8}).map((_,i)=>`<rect x="${182+i*6}" y="72" width="3" height="16" rx="1"/>`).join("")}</g>
+        <path d="M182 90 l-5 8" stroke="#eef6ff" stroke-width="2" opacity=".5"/>
+        <path d="M168 62 h68" stroke="url(#shine)" stroke-width="3"/>
+        <rect x="164" y="56" width="82" height="50" rx="7" filter="url(#grain)"/>
+      </svg>`;
+    }
+
+    function makeLabel(name) {
+      const card = document.createElement("div");
+      card.className = "label-card";
+      card.draggable = true;
+      card.textContent = name;
+      card.dataset.label = name;
+      card.setAttribute("role", "button");
+      card.tabIndex = 0;
+
+      card.addEventListener("dragstart", e => {
+        e.dataTransfer.setData("text/plain", name);
+        e.dataTransfer.effectAllowed = "move";
+      });
+
+      card.addEventListener("click", () => {
+        document.querySelectorAll(".label-card").forEach(el => el.classList.remove("selected"));
+        selectedLabel = card;
+        card.classList.add("selected");
+      });
+
+      card.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          card.click();
+        }
+      });
+
+      return card;
+    }
+
+    function clearFeedback() {
+      document.querySelectorAll(".drop-zone").forEach(zone => {
+        zone.classList.remove("correct", "wrong");
+        const mark = zone.querySelector(".mark");
+        if (mark) mark.textContent = "";
+      });
+      statusEl.textContent = "";
+      hasGraded = false;
+    }
+
+    function zoneLocked(zone) {
+      return hasGraded && zone.classList.contains("correct");
+    }
+
+    function placeLabelInZone(labelEl, zone) {
+      if (!labelEl || zoneLocked(zone)) return;
+
+      if (hasGraded) clearFeedback();
+
+      const current = zone.querySelector(".label-card");
+      if (current) {
+        current.classList.remove("selected");
+        choices.appendChild(current);
+      }
+
+      const fromZone = labelEl.closest(".drop-zone");
+      if (fromZone && fromZone !== zone) {
+        const maybeExisting = zone.querySelector(".label-card");
+        if (maybeExisting) choices.appendChild(maybeExisting);
+      }
+
+      labelEl.classList.remove("selected");
+      selectedLabel = null;
+      zone.appendChild(labelEl);
+    }
+
+    function setupZoneEvents(zone) {
+      zone.addEventListener("dragover", e => {
+        if (zoneLocked(zone)) return;
+        e.preventDefault();
+        zone.classList.add("drag-over");
+      });
+
+      zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+
+      zone.addEventListener("drop", e => {
+        if (zoneLocked(zone)) return;
+        e.preventDefault();
+        zone.classList.remove("drag-over");
+        const label = e.dataTransfer.getData("text/plain");
+        const labelEl = document.querySelector(`.label-card[data-label="${CSS.escape(label)}"]`);
+        placeLabelInZone(labelEl, zone);
+      });
+
+      zone.addEventListener("click", () => {
+        if (selectedLabel) placeLabelInZone(selectedLabel, zone);
+      });
+    }
+
+    function renderSlots() {
+      slotGrid.innerHTML = "";
+      slotDefs.forEach(def => {
+        const item = document.createElement("article");
+        item.className = "slot-item";
+
+        const card = document.createElement("div");
+        card.className = "image-card";
+        card.innerHTML = connectorSvg(def.art);
+
+        const cap = document.createElement("p");
+        cap.className = "caption";
+        cap.textContent = def.caption;
+
+        const zone = document.createElement("div");
+        zone.className = "drop-zone";
+        zone.dataset.slot = def.id;
+        zone.dataset.answer = def.answer;
+        zone.setAttribute("aria-label", `Drop zone for ${def.caption}`);
+
+        const mark = document.createElement("span");
+        mark.className = "mark";
+        zone.appendChild(mark);
+
+        setupZoneEvents(zone);
+
+        item.append(card, cap, zone);
+        slotGrid.appendChild(item);
+      });
+    }
+
+    function renderChoices(list) {
+      choices.innerHTML = "";
+      list.forEach(name => choices.appendChild(makeLabel(name)));
+      selectedLabel = null;
+    }
+
+    function getAllLabelElements() {
+      return Array.from(document.querySelectorAll(".label-card"));
+    }
+
+    function resetWrong() {
+      const toReturn = [];
+      document.querySelectorAll(".drop-zone").forEach(zone => {
+        if (zoneLocked(zone)) return;
+        const label = zone.querySelector(".label-card");
+        if (label) toReturn.push(label.dataset.label);
+      });
+
+      getAllLabelElements().forEach(el => {
+        const zone = el.closest(".drop-zone");
+        if (zone && !zoneLocked(zone)) {
+          el.remove();
+        }
+      });
+
+      const inChoices = Array.from(choices.querySelectorAll(".label-card")).map(el => el.dataset.label);
+      const merged = shuffle([...inChoices, ...toReturn]);
+      renderChoices(merged);
+      clearFeedback();
+    }
+
+    function newRound() {
+      document.querySelectorAll(".drop-zone .label-card").forEach(el => el.remove());
+      renderChoices(shuffle(labels));
+      clearFeedback();
+    }
+
+    function submit() {
+      let correct = 0;
+      document.querySelectorAll(".drop-zone").forEach(zone => {
+        zone.classList.remove("correct", "wrong");
+        const mark = zone.querySelector(".mark");
+        const placed = zone.querySelector(".label-card");
+        const ok = placed && placed.dataset.label === zone.dataset.answer;
+
+        if (ok) {
+          zone.classList.add("correct");
+          mark.textContent = "✓";
+          correct += 1;
+        } else {
+          zone.classList.add("wrong");
+          mark.textContent = "✗";
+        }
+      });
+
+      hasGraded = true;
+      statusEl.textContent = `${correct}/5 correct. Fix the red ones and submit again.`;
+    }
+
+    submitBtn.addEventListener("click", submit);
+    resetWrongBtn.addEventListener("click", resetWrong);
+    newRoundBtn.addEventListener("click", newRound);
+
+    renderSlots();
+    renderChoices(shuffle(labels));
+  </script>
+</body>
+</html>
